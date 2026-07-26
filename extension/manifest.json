@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "HOGS Route Exporter",
+  "description": "Export the active route from app.hogs.live as a standards-compliant GPX file.",
+  "version": "0.1.8",
+  "icons": {
+    "128": "icons/hogs-route-exporter-128.png"
+  },
+  "action": {
+    "default_title": "HOGS Route Exporter",
+    "default_icon": {
+      "128": "icons/hogs-route-exporter-128.png"
+    },
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.hogs.live/*"],
+      "js": ["route-core.js", "page-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://app.hogs.live/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    }
+  ],
+  "host_permissions": ["https://app.hogs.live/*"]
+}

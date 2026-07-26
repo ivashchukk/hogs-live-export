@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Privacy Policy for the HOGS Route Exporter browser extension.">
+    <title>Privacy Policy — HOGS Route Exporter</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #f5f7fb;
+        --surface: #ffffff;
+        --text: #172033;
+        --muted: #5f6b80;
+        --border: #dce3ef;
+        --accent: #315fd7;
+        --accent-soft: #edf3ff;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #08111f;
+          --surface: #101b2e;
+          --text: #f3f6fc;
+          --muted: #a8b3c7;
+          --border: #273650;
+          --accent: #7fa4ff;
+          --accent-soft: #17294a;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      main {
+        width: min(800px, calc(100% - 32px));
+        margin: 48px auto;
+        padding: clamp(28px, 6vw, 64px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: 0 18px 50px rgb(10 24 49 / 10%);
+      }
+
+      h1,
+      h2 {
+        line-height: 1.25;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 6vw, 3rem);
+        letter-spacing: -0.035em;
+      }
+
+      h2 {
+        margin: 40px 0 10px;
+        font-size: 1.25rem;
+      }
+
+      p,
+      ul {
+        margin: 0 0 16px;
+      }
+
+      ul {
+        padding-left: 24px;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .eyebrow {
+        margin-bottom: 14px;
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 750;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .updated {
+        color: var(--muted);
+      }
+
+      .summary {
+        margin: 30px 0 0;
+        padding: 20px 22px;
+        background: var(--accent-soft);
+        border-radius: 12px;
+      }
+
+      footer {
+        margin-top: 48px;
+        padding-top: 24px;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 560px) {
+        main {
+          width: 100%;
+          min-height: 100vh;
+          margin: 0;
+          border: 0;
+          border-radius: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">HOGS Route Exporter</p>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Effective and last updated: July 26, 2026</p>
+      </header>
+
+      <p class="summary">
+        HOGS Route Exporter processes route information locally in your browser to create the GPX file you request. The developer does not receive, store, sell, or share this information.
+      </p>
+
+      <h2>About the extension</h2>
+      <p>
+        HOGS Route Exporter is a browser extension that exports the route currently selected in HOGS Maps at <code>app.hogs.live</code> as a standards-compliant GPX file.
+      </p>
+
+      <h2>Information processed</h2>
+      <p>To provide its export function, the extension processes:</p>
+      <ul>
+        <li>the selected route geometry;</li>
+        <li>ordered route stops and location coordinates; and</li>
+        <li>website content required to identify and assemble the active route.</li>
+      </ul>
+      <p>
+        This processing is limited to the route information needed for the export requested by the user. The extension does not collect authentication credentials, payment information, personal communications, health information, browsing history, or advertising identifiers.
+      </p>
+
+      <h2>How information is used</h2>
+      <p>
+        Route information is used only to identify the active HOGS route, preserve its stop order, and generate a GPX file for download. It is not used for advertising, profiling, analytics, creditworthiness, lending, or any purpose unrelated to route export.
+      </p>
+
+      <h2>Local processing and retention</h2>
+      <p>
+        Processing and GPX generation take place entirely within the user's browser. Route information is not sent to the developer's servers and is not stored by the extension after processing. A downloaded GPX file remains on the user's device and under the user's control until the user moves or deletes it.
+      </p>
+
+      <h2>Sharing and sale of information</h2>
+      <p>
+        The developer does not sell, rent, disclose, or transfer route information or other user data to advertisers, analytics providers, data brokers, or any other third party.
+      </p>
+
+      <h2>Permissions</h2>
+      <p>
+        The extension requests access only to <code>https://app.hogs.live/*</code>. This permission is required to read the active route and ordered stops displayed in HOGS Maps, detect route changes, and make the resulting coordinates available for the local GPX download. The extension does not request access to other websites.
+      </p>
+
+      <h2>Remote code and external services</h2>
+      <p>
+        All executable extension code is included in the installed extension package. The extension does not download or execute remotely hosted code, and it does not use external analytics, advertising, tracking, or file-conversion services.
+      </p>
+
+      <h2>Chrome Web Store Limited Use</h2>
+      <p>
+        The extension's use of information received from Chrome APIs adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements. Information is used only to provide the extension's single, user-facing route-export purpose.
+      </p>
+
+      <h2>User choices</h2>
+      <p>
+        Users can stop all extension processing by disabling or uninstalling HOGS Route Exporter. Because the developer does not receive or retain route information, there is no server-side user record to access, correct, or delete. Users can delete exported GPX files directly from their devices.
+      </p>
+
+      <h2>Children's privacy</h2>
+      <p>
+        The extension is not directed to children and does not knowingly collect personal information from children.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        This policy may be updated if the extension's functionality, data practices, or legal requirements change. The current version will remain available at this URL with its effective date shown above.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        For questions about this privacy policy or the extension's privacy practices, contact:<br>
+        Mykola Ivashchuk<br>
+        <a href="mailto:mykolaivashchuk@gmail.com">mykolaivashchuk@gmail.com</a>
+      </p>
+
+      <footer>
+        HOGS Route Exporter is an independent browser extension. References to HOGS Maps identify the service with which the extension operates and do not imply ownership or endorsement.
+      </footer>
+    </main>
+  </body>
+</html>

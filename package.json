@@ -1,0 +1,10 @@
+{
+  "name": "hogs-route-exporter",
+  "version": "0.1.8",
+  "private": true,
+  "description": "Chromium extension that exports the active HOGS route drawn with HERE Maps.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "package": "sh scripts/package.sh"
+  }
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HOGS Route Exporter</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img">
+            <path d="M5 23c5-11 9-14 14-9s4 8 8-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="5" cy="23" r="3" fill="currentColor"/>
+            <circle cx="27" cy="9" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <h1>HOGS Route Exporter</h1>
+          <p>Active HOGS route</p>
+        </div>
+      </header>
+
+      <section id="status-card" class="status-card loading" aria-live="polite">
+        <div class="status-line">
+          <span id="status-dot" class="status-dot"></span>
+          <strong id="status-title">Scanning map…</strong>
+        </div>
+        <p id="status-message">Looking for the selected route.</p>
+      </section>
+
+      <section id="route-details" class="route-details" hidden>
+        <dl>
+          <div>
+            <dt>Coordinates</dt>
+            <dd id="point-count">—</dd>
+          </div>
+          <div>
+            <dt>Geometry length</dt>
+            <dd id="route-distance">—</dd>
+          </div>
+        </dl>
+        <div class="selected-color">
+          <span id="route-color-swatch" class="color-swatch" aria-hidden="true"></span>
+          <span>Selected route color</span>
+          <code id="route-color">—</code>
+        </div>
+        <p id="route-endpoints" class="endpoints"></p>
+      </section>
+
+      <section class="actions" aria-label="Export route">
+        <button id="download-gpx" type="button" disabled>
+          <span>Download GPX</span>
+          <small>Route, stops, and track</small>
+        </button>
+      </section>
+
+      <button id="rescan" class="rescan" type="button">Refresh route</button>
+    </main>
+
+    <script src="export-core.js"></script>
+    <script src="refresh-controller.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
