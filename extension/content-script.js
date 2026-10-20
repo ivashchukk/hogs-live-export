@@ -54,7 +54,7 @@
           ok: false,
           error: {
             code: "BRIDGE_UNAVAILABLE",
-            message: "Reload the HOGS tab once after installing or updating the extension."
+            message: "Reload the route-planner tab once after installing or updating the extension."
           }
         });
       }, 5000);

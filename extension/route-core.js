@@ -400,7 +400,7 @@
     return components;
   }
 
-  function isSimpleComponent(component, toleranceMeters = JOIN_TOLERANCE_METERS) {
+  function isSimpleComponent(component, toleranceMeters = JOIN_TOLERANCE_METERS, allowClosed = false) {
     if (component.length === 1) {
       return true;
     }
@@ -424,8 +424,9 @@
       degrees[endNode] += 1;
     }
 
-    return degrees.filter((degree) => degree === 1).length === 2 &&
-      degrees.every((degree) => degree <= 2);
+    const endpointCount = degrees.filter((degree) => degree === 1).length;
+    return degrees.every((degree) => degree <= 2) &&
+      (endpointCount === 2 || (allowClosed && endpointCount === 0));
   }
 
   function attachmentOptions(routePoints, segment) {
@@ -864,7 +865,11 @@
     }).filter(Boolean);
   }
 
-  function buildColorChains(routeSegments) {
+  function buildColorChains(
+    routeSegments,
+    closedRouteWaypointGroups = [],
+    allowUnverifiedClosedRoute = false
+  ) {
     const byColor = new Map();
     for (const segment of routeSegments) {
       if (!byColor.has(segment.color.key)) {
@@ -877,17 +882,29 @@
     for (const segments of byColor.values()) {
       const deduplicated = deduplicateSegments(segments);
       for (const component of connectedComponents(deduplicated, LEG_JOIN_TOLERANCE_METERS)) {
-        if (!isSimpleComponent(component, LEG_JOIN_TOLERANCE_METERS)) {
+        const simple = isSimpleComponent(component, LEG_JOIN_TOLERANCE_METERS);
+        const closed = !simple && isSimpleComponent(component, LEG_JOIN_TOLERANCE_METERS, true);
+        if (!simple && !closed) {
           continue;
         }
-        chains.push(candidateFromComponent(component, {
+        const candidate = candidateFromComponent(component, {
           color: component[0].color,
           zIndex: Math.max(...component.map((segment) => segment.zIndex)),
           objectOrder: Math.max(...component.map((segment) => segment.objectOrder)),
           parentId: "selected-color-chain",
           routeHint: component.some((segment) => segment.routeHint),
           sourceObjectCount: new Set(component.map((segment) => segment.objectOrder)).size
-        }, LEG_JOIN_TOLERANCE_METERS));
+        }, LEG_JOIN_TOLERANCE_METERS);
+        if (
+          closed &&
+          !allowUnverifiedClosedRoute &&
+          !closedRouteWaypointGroups.some((points) =>
+            points.length >= 3 && selectOrderedMarkerWaypoints([points], candidate.points).length > 0
+          )
+        ) {
+          continue;
+        }
+        chains.push(candidate);
       }
     }
     return chains;
@@ -1007,8 +1024,20 @@
     return ranked.length > 0 ? ranked[0].points : [];
   }
 
-  function selectCompleteRoute(routeSegments, routeCandidates, orderedWaypoints, orderMethod) {
-    const chains = buildColorChains(routeSegments).filter(
+  function selectCompleteRoute(
+    routeSegments,
+    routeCandidates,
+    orderedWaypoints,
+    orderMethod,
+    closedRouteWaypointGroups = [],
+    allowUnverifiedClosedRoute = false
+  ) {
+    const waypoints = normalizeOrderedWaypoints(orderedWaypoints);
+    const chains = buildColorChains(
+      routeSegments,
+      waypoints.length >= 3 ? [waypoints] : closedRouteWaypointGroups,
+      allowUnverifiedClosedRoute
+    ).filter(
       (candidate) => candidate.distanceMeters >= MIN_ROUTE_LENGTH_METERS
     );
     if (chains.length === 0) {
@@ -1018,7 +1047,6 @@
       );
     }
 
-    const waypoints = normalizeOrderedWaypoints(orderedWaypoints);
     const preferredColor = preferredColorFromFamilies(routeCandidates);
     let pool = preferredColor
       ? chains.filter((candidate) => candidate.color.key === preferredColor.key)
@@ -1146,6 +1174,10 @@
     }
 
     const urlWaypoints = normalizeOrderedWaypoints(metadata && metadata.orderedWaypoints);
+    const markerWaypointGroups = collectMarkerWaypointGroups(objects, hereApi);
+    const allowUnverifiedClosedRoute = Boolean(
+      metadata && metadata.sourceUrl && metadata.sourceUrl.startsWith("https://apps.impargo.de/")
+    );
     let active;
     if (urlWaypoints.length >= 2) {
       active = selectCompleteRoute(
@@ -1159,10 +1191,12 @@
         routeSegments,
         routeCandidates,
         [],
-        "geometry-fallback"
+        "geometry-fallback",
+        markerWaypointGroups,
+        allowUnverifiedClosedRoute
       );
       const markerWaypoints = selectOrderedMarkerWaypoints(
-        collectMarkerWaypointGroups(objects, hereApi),
+        markerWaypointGroups,
         provisional.points
       );
       active = markerWaypoints.length >= 2
@@ -1188,7 +1222,7 @@
 
     const mapList = Array.from(maps || []).filter(Boolean);
     if (mapList.length === 0) {
-      throw new RouteExportError("MAP_NOT_FOUND", "The HOGS map has not been detected.");
+      throw new RouteExportError("MAP_NOT_FOUND", "The route map has not been detected.");
     }
 
     const candidates = mapList.flatMap((map, index) =>

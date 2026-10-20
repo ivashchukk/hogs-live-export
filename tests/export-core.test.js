@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { serialize, toGpx } = require("../extension/export-core.js");
+const { filenameForSnapshot, serialize, toGpx } = require("../extension/export-core.js");
 
 const snapshot = {
   points: [
@@ -24,7 +24,7 @@ function trackSection(gpx) {
 test("creates a GPX 1.1 document with waypoints and one continuous track", () => {
   const gpx = toGpx(snapshot);
   assert.match(gpx, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
-  assert.match(gpx, /<gpx version="1\.1" creator="HOGS Route Exporter" xmlns="http:\/\/www\.topografix\.com\/GPX\/1\/1"/);
+  assert.match(gpx, /<gpx version="1\.1" creator="Route Exporter" xmlns="http:\/\/www\.topografix\.com\/GPX\/1\/1"/);
   assert.equal((gpx.match(/<wpt /g) || []).length, 2);
   assert.equal((gpx.match(/<rtept /g) || []).length, 0);
   assert.doesNotMatch(gpx, /<rte>/);
@@ -35,7 +35,7 @@ test("creates a GPX 1.1 document with waypoints and one continuous track", () =>
   assert.ok(gpx.indexOf("<wpt ") < gpx.indexOf("<trk>"));
 });
 
-test("adds every ordered HOGS stop to waypoints and the dense track", () => {
+test("adds every ordered route stop to waypoints and the dense track", () => {
   const multipoint = {
     ...snapshot,
     points: [
@@ -56,8 +56,8 @@ test("adds every ordered HOGS stop to waypoints and the dense track", () => {
   assert.equal((gpx.match(/<wpt /g) || []).length, 3);
   assert.equal((gpx.match(/<rtept /g) || []).length, 0);
   assert.equal((track.match(/<trkpt /g) || []).length, 4);
-  assert.match(gpx, /<wpt lat="52" lon="17">\s*<ele>42<\/ele>\s*<name>B<\/name>\s*<desc>HOGS stop B<\/desc>/);
-  assert.match(track, /<trkpt lat="52" lon="17">\s*<ele>42<\/ele>\s*<name>B<\/name>\s*<desc>HOGS stop B<\/desc>\s*<type>HOGS stop<\/type>/);
+  assert.match(gpx, /<wpt lat="52" lon="17">\s*<ele>42<\/ele>\s*<name>B<\/name>\s*<desc>Route stop B<\/desc>/);
+  assert.match(track, /<trkpt lat="52" lon="17">\s*<ele>42<\/ele>\s*<name>B<\/name>\s*<desc>Route stop B<\/desc>\s*<type>Route stop<\/type>/);
   assert.ok(track.indexOf("<name>A</name>") < track.indexOf("<name>B</name>"));
   assert.ok(track.indexOf("<name>B</name>") < track.indexOf("<name>C</name>"));
 });
@@ -124,14 +124,64 @@ test("exposes GPX as the only export format", () => {
   assert.throws(() => serialize({ points: [] }), /at least two coordinates/);
 
   const popup = fs.readFileSync(path.join(__dirname, "../extension/popup.html"), "utf8");
+  const popupScript = fs.readFileSync(path.join(__dirname, "../extension/popup.js"), "utf8");
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "../extension/manifest.json"), "utf8"));
   const packageMetadata = JSON.parse(fs.readFileSync(path.join(__dirname, "../package.json"), "utf8"));
   assert.match(popup, /id="download-gpx"/);
-  assert.match(popup, /<title>HOGS Route Exporter<\/title>/);
-  assert.match(popup, /<h1>HOGS Route Exporter<\/h1>/);
+  assert.match(popup, /<title>Route Exporter<\/title>/);
+  assert.match(popup, /<h1>Route Exporter<\/h1>/);
   assert.doesNotMatch(popup, /CSV|GeoJSON|data-format/);
-  assert.equal(manifest.name, "HOGS Route Exporter");
-  assert.equal(manifest.action.default_title, "HOGS Route Exporter");
+  assert.equal(manifest.name, "Route Exporter");
+  assert.equal(manifest.action.default_title, "Route Exporter");
+  assert.deepEqual(manifest.host_permissions, [
+    "https://app.hogs.live/*",
+    "https://apps.impargo.de/*",
+    "https://live-wf.webfleet.com/*",
+    "https://www.google.com/maps/*",
+    "https://www.google.pl/maps/*"
+  ]);
+  assert.ok(manifest.content_scripts.some(({ matches, world }) =>
+    world === "MAIN" && matches.includes("https://live-wf.webfleet.com/*")
+  ));
+  assert.ok(manifest.content_scripts.some(({ matches, world }) =>
+    world === "ISOLATED" && matches.includes("https://live-wf.webfleet.com/*")
+  ));
+  assert.match(popupScript, /https:\/\/apps\.impargo\.de\//);
+  assert.match(popupScript, /https:\/\/live-wf\.webfleet\.com\//);
+  for (const origin of ["https://www.google.com/maps/*", "https://www.google.pl/maps/*"]) {
+    assert.ok(manifest.content_scripts.some(({ matches, world, js }) =>
+      world === "MAIN" && matches.includes(origin) && js.includes("google-maps-page-bridge.js")
+    ));
+    assert.ok(manifest.content_scripts.some(({ matches, world }) =>
+      world === "ISOLATED" && matches.includes(origin)
+    ));
+  }
+  assert.match(manifest.description, /Google Maps/);
+  assert.equal(manifest.version, "1.0.0");
+  assert.equal(packageMetadata.version, manifest.version);
   assert.doesNotMatch(manifest.description, /CSV|GeoJSON/);
-  assert.equal(packageMetadata.name, "hogs-route-exporter");
+  assert.equal(packageMetadata.name, "route-exporter");
+});
+
+test("uses the Webfleet route name as the GPX filename and track name", () => {
+  const namedSnapshot = { ...snapshot, routeName: "Route & 42" };
+  assert.equal(filenameForSnapshot(namedSnapshot), "Route & 42.gpx");
+  assert.equal(filenameForSnapshot({ ...snapshot, routeName: "already.GPX" }), "already.GPX");
+  assert.equal(
+    filenameForSnapshot(snapshot, new Date(2026, 8, 30, 9, 8, 7)),
+    "route-20260930-090807.gpx"
+  );
+  assert.match(toGpx(namedSnapshot), /<name>Route &amp; 42<\/name>/);
+});
+
+test("captures routes stored in custom HERE object-layer groups", () => {
+  const bridge = fs.readFileSync(path.join(__dirname, "../extension/page-bridge.js"), "utf8");
+  assert.match(bridge, /function trackRouteMutation[\s\S]*registerMap\(this\)/);
+});
+
+test("captures Webfleet Leaflet maps and selected route names", () => {
+  const bridge = fs.readFileSync(path.join(__dirname, "../extension/page-bridge.js"), "utf8");
+  assert.match(bridge, /function patchLeaflet\(\)/);
+  assert.match(bridge, /\[data-testid="route-action-export-button"\]/);
+  assert.match(bridge, /window\.WebfleetRouteCore\.findActiveRoute/);
 });

@@ -7,9 +7,14 @@
   const routeDetails = document.getElementById("route-details");
   const pointCount = document.getElementById("point-count");
   const routeDistance = document.getElementById("route-distance");
-  const routeEndpoints = document.getElementById("route-endpoints");
-  const routeColor = document.getElementById("route-color");
-  const routeColorSwatch = document.getElementById("route-color-swatch");
+  const emptyState = document.getElementById("empty-state");
+  const routeProvider = document.getElementById("route-provider");
+  const routeTitle = document.getElementById("route-title");
+  const stopCount = document.getElementById("stop-count");
+  const originName = document.getElementById("route-origin-name");
+  const destinationName = document.getElementById("route-destination-name");
+  const originCoordinates = document.getElementById("route-origin-coordinates");
+  const destinationCoordinates = document.getElementById("route-destination-coordinates");
   const rescanButton = document.getElementById("rescan");
   const downloadButton = document.getElementById("download-gpx");
   let snapshot = null;
@@ -21,6 +26,7 @@
     statusCard.className = `status-card ${kind}`;
     statusTitle.textContent = title;
     statusMessage.textContent = message;
+    emptyState.hidden = Boolean(snapshot);
   }
 
   function setButtonsEnabled(enabled) {
@@ -38,6 +44,42 @@
     return `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`;
   }
 
+  function renderRoutePreview(points) {
+    let longitude = points[0].lng;
+    const latitudeScale = Math.cos(points[0].lat * Math.PI / 180);
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const projected = points.map((point) => {
+      longitude += ((point.lng - longitude + 540) % 360) - 180;
+      const x = longitude * latitudeScale;
+      const y = -point.lat;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      return { x, y };
+    });
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const scale = Math.min(280 / Math.max(width, 0.000001), 60 / Math.max(height, 0.000001));
+    const positions = projected.map((point) => ({
+      x: ((point.x - minX) * scale + (328 - width * scale) / 2).toFixed(1),
+      y: ((point.y - minY) * scale + (108 - height * scale) / 2).toFixed(1)
+    }));
+    const stride = Math.max(1, Math.ceil(points.length / 500));
+    const path = positions.filter((_point, index) => index % stride === 0 || index === positions.length - 1)
+      .map((point) => `${point.x},${point.y}`).join(" ");
+    for (const id of ["route-preview-track", "route-preview-halo"]) {
+      document.getElementById(id).setAttribute("points", path);
+    }
+    for (const [id, point] of [["route-preview-start", positions[0]], ["route-preview-end", positions[positions.length - 1]]]) {
+      document.getElementById(id).setAttribute("cx", point.x);
+      document.getElementById(id).setAttribute("cy", point.y);
+    }
+  }
+
   function renderSnapshot(nextSnapshot) {
     snapshot = nextSnapshot;
     lastRouteSignature = snapshot.routeSignature || null;
@@ -46,26 +88,39 @@
 
     pointCount.textContent = snapshot.points.length.toLocaleString();
     routeDistance.textContent = formatDistance(snapshot.distanceMeters);
-    routeEndpoints.textContent = `A ${formatPoint(first)}  →  B ${formatPoint(last)}`;
-    const strokeColor = snapshot.selectedStyle?.strokeColor || "transparent";
-    routeColor.textContent = strokeColor;
-    routeColorSwatch.style.backgroundColor = strokeColor;
+    stopCount.textContent = (snapshot.stops?.length || snapshot.waypointCount || 2).toLocaleString();
+    routeProvider.textContent = snapshot.provider === "google-maps" ? "Google Maps"
+      : snapshot.provider === "webfleet" ? "Webfleet"
+      : snapshot.sourceUrl?.startsWith("https://apps.impargo.de/") ? "IMPARGO"
+      : snapshot.sourceUrl?.startsWith("https://app.hogs.live/") ? "HOGS" : "Route planner";
+    routeTitle.textContent = snapshot.provider === "google-maps" ? "Your route" : snapshot.routeName || "Your route";
+    routeTitle.title = routeTitle.textContent;
+    const names = snapshot.provider === "google-maps" && snapshot.routeName ? snapshot.routeName.split(" to ") : [];
+    originName.textContent = names.length === 2 ? names[0] : "Starting point";
+    destinationName.textContent = names.length === 2 ? names[1] : "Destination";
+    originName.title = originName.textContent;
+    destinationName.title = destinationName.textContent;
+    originCoordinates.textContent = formatPoint(first);
+    destinationCoordinates.textContent = formatPoint(last);
+    renderRoutePreview(snapshot.points);
     routeDetails.hidden = false;
     setButtonsEnabled(true);
-    setStatus("ready", "Active route found", "Download the selected HOGS route as GPX.");
+    setStatus("ready", "Ready to export", "Download the selected route as GPX.");
   }
 
   function errorCopy(code, fallbackMessage) {
     switch (code) {
       case "NOT_HOGS":
-        return ["Open HOGS", "This version works on app.hogs.live only."];
+        return ["Open route planner", "Open Google Maps, HOGS, IMPARGO, or Webfleet to export a route."];
       case "NO_ACTIVE_ROUTE":
-        return ["No active route", "Calculate or select a route in HOGS, then scan again."];
+        return ["No active route", "Calculate or select a route, then scan again."];
       case "HERE_NOT_READY":
+      case "LEAFLET_NOT_READY":
+      case "GOOGLE_MAPS_NOT_READY":
       case "MAP_NOT_FOUND":
-        return ["Map not ready", "Wait for the HOGS map to finish loading, then scan again."];
+        return ["Map not ready", "Wait for the route map to finish loading, then scan again."];
       case "BRIDGE_UNAVAILABLE":
-        return ["Reload HOGS", "Reload the HOGS tab once after installing or updating the extension."];
+        return ["Reload page", "Reload the route-planner tab once after installing or updating the extension."];
       case "AMBIGUOUS_ROUTE_STYLE":
         return ["Selected route is ambiguous", "The visible routes use the same color, so nothing was exported."];
       default:
@@ -75,7 +130,8 @@
 
   function setRefreshControl(refreshing) {
     rescanButton.disabled = refreshing;
-    rescanButton.textContent = refreshing ? "Refreshing…" : "Refresh route";
+    rescanButton.title = refreshing ? "Refreshing route…" : "Refresh route";
+    rescanButton.setAttribute("aria-label", rescanButton.title);
   }
 
   function beginRefresh(reason) {
@@ -96,13 +152,19 @@
 
   async function requestRouteSnapshot() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id || !tab.url || !tab.url.startsWith("https://app.hogs.live/")) {
+    if (!tab || !tab.id || !tab.url || ![
+      "https://app.hogs.live/",
+      "https://apps.impargo.de/",
+      "https://live-wf.webfleet.com/",
+      "https://www.google.com/maps/",
+      "https://www.google.pl/maps/"
+    ].some((origin) => tab.url.startsWith(origin))) {
       activeTabId = null;
       return {
         tabId: null,
         response: {
           ok: false,
-          error: { code: "NOT_HOGS", message: "Open a HOGS map tab." }
+          error: { code: "NOT_HOGS", message: "Open a supported route-planner tab." }
         }
       };
     }
@@ -118,7 +180,7 @@
           ok: false,
           error: {
             code: "BRIDGE_UNAVAILABLE",
-            message: "Reload the HOGS tab once after installing or updating the extension."
+            message: "Reload the route-planner tab once after installing or updating the extension."
           }
         }
       };
@@ -139,13 +201,13 @@
       } else {
         snapshot = nextSnapshot;
         setButtonsEnabled(true);
-        setStatus("ready", "Active route found", "Download the selected HOGS route as GPX.");
+        setStatus("ready", "Ready to export", "Download the selected route as GPX.");
       }
       setRefreshControl(false);
       return;
     }
 
-    if (reason === "fallback" && snapshot) {
+    if (reason === "fallback" && snapshot && snapshot.provider !== "google-maps") {
       return;
     }
 
@@ -160,7 +222,7 @@
   }
 
   function handleScanError(error, reason) {
-    if (reason === "fallback" && snapshot) {
+    if (reason === "fallback" && snapshot && snapshot.provider !== "google-maps") {
       return;
     }
     snapshot = null;
@@ -172,34 +234,29 @@
     setStatus("error", title, message);
   }
 
-  function timestampForFilename(date) {
-    const pad = (value) => String(value).padStart(2, "0");
-    return [
-      date.getFullYear(),
-      pad(date.getMonth() + 1),
-      pad(date.getDate()),
-      "-",
-      pad(date.getHours()),
-      pad(date.getMinutes()),
-      pad(date.getSeconds())
-    ].join("");
-  }
-
-  function downloadGpx() {
+  async function downloadGpx() {
     if (!snapshot) {
       return;
     }
 
     try {
+      if (snapshot.provider === "google-maps") {
+        setButtonsEnabled(false);
+        const result = await requestRouteSnapshot();
+        handleScanResult(result, "download");
+        if (!snapshot) {
+          return;
+        }
+      }
       const output = window.HereRouteExporters.serialize(snapshot);
       const blob = new Blob([output.content], { type: output.mimeType });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `hogs-active-route-${timestampForFilename(new Date())}.gpx`;
+      anchor.download = window.HereRouteExporters.filenameForSnapshot(snapshot, new Date());
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setStatus("ready", "GPX downloaded", "The active route and all ordered stops were exported locally.");
+      setStatus("ready", "GPX downloaded", "The active route and its ordered stops were exported locally.");
     } catch (error) {
       setStatus("error", "Export failed", error.message || "The file could not be created.");
     }

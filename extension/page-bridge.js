@@ -8,6 +8,7 @@
   const CHANGE_EVENT_DEBOUNCE_MS = 120;
   const MAP_QUIET_MS = 300;
   const MAP_SETTLE_TIMEOUT_MS = 2000;
+  const IS_WEBFLEET = window.location.hostname === "live-wf.webfleet.com";
   const maps = new Set();
   let mapRevision = 0;
   let lastMutationAt = 0;
@@ -38,7 +39,7 @@
   }
 
   function registerMap(map) {
-    if (map && typeof map.getObjects === "function") {
+    if (map && (typeof map.getObjects === "function" || typeof map.eachLayer === "function")) {
       maps.add(map);
     }
   }
@@ -89,6 +90,7 @@
 
       prototype[methodName] = function trackRouteMutation(...args) {
         const result = Reflect.apply(original, this, args);
+        registerMap(this);
         recordMapMutation();
         return result;
       };
@@ -142,8 +144,49 @@
     return true;
   }
 
+  function patchLeafletPrototype(Constructor, methodNames, getMap) {
+    const prototype = Constructor && Constructor.prototype;
+    if (!prototype || Object.prototype.hasOwnProperty.call(prototype, MUTATION_PATCH_KEY)) {
+      return;
+    }
+
+    Object.defineProperty(prototype, MUTATION_PATCH_KEY, { value: true });
+    for (const methodName of methodNames) {
+      const original = prototype[methodName];
+      if (typeof original !== "function") {
+        continue;
+      }
+
+      prototype[methodName] = function trackLeafletMutation(...args) {
+        const result = Reflect.apply(original, this, args);
+        registerMap(getMap(this, args));
+        recordMapMutation();
+        return result;
+      };
+    }
+  }
+
+  function patchLeaflet() {
+    const leaflet = window.L;
+    if (!leaflet || typeof leaflet.Map !== "function" || typeof leaflet.Polyline !== "function") {
+      return false;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(leaflet.Map, PATCH_KEY)) {
+      Object.defineProperty(leaflet.Map, PATCH_KEY, { value: true });
+      if (typeof leaflet.Map.addInitHook === "function") {
+        leaflet.Map.addInitHook(function rememberLeafletMap() {
+          registerMap(this);
+        });
+      }
+    }
+    patchLeafletPrototype(leaflet.Map, ["addLayer", "removeLayer"], (map) => map);
+    patchLeafletPrototype(leaflet.Polyline, ["setLatLngs", "setStyle"], (polyline) => polyline._map);
+    return true;
+  }
+
   const patchTimer = window.setInterval(() => {
-    if (patchHere()) {
+    if (IS_WEBFLEET ? patchLeaflet() : patchHere()) {
       window.clearInterval(patchTimer);
     }
   }, 10);
@@ -207,17 +250,40 @@
     return start && end ? [start, ...intermediates, end] : [];
   }
 
+  function getWebfleetRouteName() {
+    const exportButton = document.querySelector('[data-testid="route-action-export-button"]');
+    const selectedRow = exportButton && exportButton.closest('[class*="compact-list-row"]');
+    const routeRow = selectedRow && selectedRow.querySelector('[data-testid="route-row"]');
+    return routeRow && routeRow.innerText
+      ? routeRow.innerText.split(/\r?\n/, 1)[0].trim()
+      : "";
+  }
+
   async function scanStableRoute() {
     const deadline = Date.now() + MAP_SETTLE_TIMEOUT_MS;
     while (true) {
       await waitForMapToSettle();
       const revisionBeforeScan = mapRevision;
       const sourceUrl = `${window.location.origin}${window.location.pathname}`;
-      const snapshot = window.HereRouteCore.findActiveRoute(maps, window.H, {
-        sourceUrl,
-        capturedAt: new Date().toISOString(),
-        orderedWaypoints: getOrderedUrlWaypoints()
-      });
+      let snapshot;
+      if (IS_WEBFLEET) {
+        if (!window.WebfleetRouteCore || !window.L) {
+          const error = new Error("Webfleet's map has not finished loading.");
+          error.code = "LEAFLET_NOT_READY";
+          throw error;
+        }
+        snapshot = window.WebfleetRouteCore.findActiveRoute(maps, {
+          sourceUrl,
+          capturedAt: new Date().toISOString(),
+          routeName: getWebfleetRouteName()
+        });
+      } else {
+        snapshot = window.HereRouteCore.findActiveRoute(maps, window.H, {
+          sourceUrl,
+          capturedAt: new Date().toISOString(),
+          orderedWaypoints: getOrderedUrlWaypoints()
+        });
+      }
 
       if (revisionBeforeScan === mapRevision || Date.now() >= deadline) {
         return { snapshot, revision: mapRevision };

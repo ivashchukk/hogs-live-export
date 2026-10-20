@@ -37,6 +37,33 @@
     return label;
   }
 
+  function routeName(snapshot) {
+    return typeof snapshot.routeName === "string" && snapshot.routeName.trim()
+      ? snapshot.routeName.trim()
+      : "Active route";
+  }
+
+  function timestampForFilename(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate()),
+      "-",
+      pad(date.getHours()),
+      pad(date.getMinutes()),
+      pad(date.getSeconds())
+    ].join("");
+  }
+
+  function filenameForSnapshot(snapshot, date = new Date()) {
+    const name = typeof snapshot?.routeName === "string" ? snapshot.routeName.trim() : "";
+    if (name) {
+      return name.toLowerCase().endsWith(".gpx") ? name : `${name}.gpx`;
+    }
+    return `route-${timestampForFilename(date)}.gpx`;
+  }
+
   function pointElevation(point, indentation) {
     return Number.isFinite(point.alt)
       ? `\n${indentation}<ele>${escapeXml(formatNumber(point.alt))}</ele>`
@@ -125,8 +152,8 @@
   function stopMetadata(stopIndex, indentation) {
     const label = escapeXml(stopLabel(stopIndex));
     return `\n${indentation}<name>${label}</name>
-${indentation}<desc>HOGS stop ${label}</desc>
-${indentation}<type>HOGS stop</type>`;
+${indentation}<desc>Route stop ${label}</desc>
+${indentation}<type>Route stop</type>`;
   }
 
   function toGpx(snapshot) {
@@ -135,8 +162,8 @@ ${indentation}<type>HOGS stop</type>`;
       const label = escapeXml(stopLabel(index));
       return `  <wpt lat="${escapeXml(formatNumber(point.lat))}" lon="${escapeXml(formatNumber(point.lng))}">${pointElevation(point, "    ")}
     <name>${label}</name>
-    <desc>HOGS stop ${label}</desc>
-    <type>HOGS stop</type>
+    <desc>Route stop ${label}</desc>
+    <type>Route stop</type>
   </wpt>`;
     }).join("\n");
     const trackPoints = trackPointsWithStops(snapshot.points, stops).map((point) => {
@@ -154,13 +181,13 @@ ${indentation}<type>HOGS stop</type>`;
     }).join("\n");
 
     return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="HOGS Route Exporter" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<gpx version="1.1" creator="Route Exporter" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <metadata>
     <time>${escapeXml(snapshot.capturedAt)}</time>
   </metadata>
 ${waypoints}
   <trk>
-    <name>HOGS active route</name>
+    <name>${escapeXml(routeName(snapshot))}</name>
     <trkseg>
 ${trackPoints}
     </trkseg>
@@ -177,5 +204,5 @@ ${trackPoints}
     return { content: toGpx(snapshot), mimeType: "application/gpx+xml;charset=utf-8" };
   }
 
-  return { escapeXml, serialize, toGpx };
+  return { escapeXml, filenameForSnapshot, serialize, toGpx };
 });

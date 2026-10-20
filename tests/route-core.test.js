@@ -394,6 +394,64 @@ test("exports every selected leg of a multipoint route in HOGS waypoint order", 
   assert.equal(snapshot.selectedStyle.detectionMethod, "selected-color-chain");
 });
 
+test("exports a multipoint route whose first and last stops are close together", () => {
+  const pointA = [10, 50];
+  const pointB = [15, 52];
+  const pointC = [10.001, 50];
+  const active = { lineWidth: 8, strokeColor: "#7392ff" };
+  const inactive = { lineWidth: 8, strokeColor: "#888888" };
+  const markerGroup = new FakeMarkerGroup();
+  const markers = [pointA, pointB, pointC].map(([lng, lat]) =>
+    new FakeMarker({ lat, lng }, markerGroup)
+  );
+  markerGroup.objects = markers;
+
+  const snapshot = findActiveRoute([new FakeMap([
+    new FakePolyline(line([pointA, [11.5, 51.5], pointB]), { style: inactive }),
+    new FakePolyline(line([pointA, [12, 51], pointB]), { style: active }),
+    new FakePolyline(line([pointB, [11.7, 51.2], pointC]), { style: inactive }),
+    new FakePolyline(line([pointB, [13, 51], pointC]), { style: active }),
+    ...markers
+  ])], H);
+
+  assert.deepEqual(snapshot.points, [
+    { lat: 50, lng: 10 },
+    { lat: 51, lng: 12 },
+    { lat: 52, lng: 15 },
+    { lat: 51, lng: 13 },
+    { lat: 50, lng: 10.001 }
+  ]);
+  assert.deepEqual(snapshot.stops, [
+    { lat: 50, lng: 10 },
+    { lat: 52, lng: 15 },
+    { lat: 50, lng: 10.001 }
+  ]);
+  assert.equal(snapshot.orderMethod, "map-waypoints");
+});
+
+test("accepts an unbranched near-return route without markers on IMPARGO", () => {
+  const pointA = [10, 50];
+  const pointB = [15, 52];
+  const pointC = [10.001, 50];
+  const style = { lineWidth: 8, strokeColor: "#7392ff" };
+
+  const snapshot = findActiveRoute([new FakeMap([
+    new FakePolyline(line([pointA, [12, 51], pointB]), { style }),
+    new FakePolyline(line([pointB, [13, 51], pointC]), { style })
+  ])], H, {
+    sourceUrl: "https://apps.impargo.de/orders/assignment/test"
+  });
+
+  assert.deepEqual(snapshot.points, [
+    { lat: 50, lng: 10 },
+    { lat: 51, lng: 12 },
+    { lat: 52, lng: 15 },
+    { lat: 51, lng: 13 },
+    { lat: 50, lng: 10.001 }
+  ]);
+  assert.equal(snapshot.orderMethod, "geometry-fallback");
+});
+
 test("rejects a larger overlay marker group that does not span the active route", () => {
   const pointA = [13.377, 52.51603];
   const pointB = [18.6466, 54.352];

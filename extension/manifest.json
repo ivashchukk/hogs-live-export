@@ -1,31 +1,49 @@
 {
   "manifest_version": 3,
-  "name": "HOGS Route Exporter",
-  "description": "Export the active route from app.hogs.live as a standards-compliant GPX file.",
-  "version": "0.1.8",
+  "name": "Route Exporter",
+  "description": "Export the selected route from Google Maps, HOGS, IMPARGO, or Webfleet as a GPX file with ordered stops and a road-following track.",
+  "version": "1.0.0",
   "icons": {
-    "128": "icons/hogs-route-exporter-128.png"
+    "16": "icons/route-exporter-16.png",
+    "32": "icons/route-exporter-32.png",
+    "48": "icons/route-exporter-48.png",
+    "128": "icons/route-exporter-128.png"
   },
   "action": {
-    "default_title": "HOGS Route Exporter",
+    "default_title": "Route Exporter",
     "default_icon": {
-      "128": "icons/hogs-route-exporter-128.png"
+      "16": "icons/route-exporter-16.png",
+      "32": "icons/route-exporter-32.png",
+      "48": "icons/route-exporter-48.png",
+      "128": "icons/route-exporter-128.png"
     },
     "default_popup": "popup.html"
   },
   "content_scripts": [
     {
-      "matches": ["https://app.hogs.live/*"],
+      "matches": ["https://app.hogs.live/*", "https://apps.impargo.de/*"],
       "js": ["route-core.js", "page-bridge.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["https://app.hogs.live/*"],
+      "matches": ["https://live-wf.webfleet.com/*"],
+      "js": ["webfleet-route-core.js", "page-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.google.com/maps/*", "https://www.google.pl/maps/*"],
+      "js": ["route-core.js", "google-maps-route-core.js", "google-maps-page-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://app.hogs.live/*", "https://apps.impargo.de/*", "https://live-wf.webfleet.com/*", "https://www.google.com/maps/*", "https://www.google.pl/maps/*"],
       "js": ["content-script.js"],
       "run_at": "document_start",
       "world": "ISOLATED"
     }
   ],
-  "host_permissions": ["https://app.hogs.live/*"]
+  "host_permissions": ["https://app.hogs.live/*", "https://apps.impargo.de/*", "https://live-wf.webfleet.com/*", "https://www.google.com/maps/*", "https://www.google.pl/maps/*"]
 }

@@ -3,60 +3,106 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HOGS Route Exporter</title>
+    <title>Route Exporter</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main>
-      <header>
-        <div class="logo" aria-hidden="true">
-          <svg viewBox="0 0 32 32" role="img">
-            <path d="M5 23c5-11 9-14 14-9s4 8 8-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-            <circle cx="5" cy="23" r="3" fill="currentColor"/>
-            <circle cx="27" cy="9" r="3" fill="currentColor"/>
+      <header class="app-header">
+        <img class="app-icon" src="icons/route-exporter-48.png" width="40" height="40" alt="">
+        <div class="app-title">
+          <h1>Route Exporter</h1>
+          <p>From map to GPX.</p>
+        </div>
+        <button id="rescan" class="refresh-button" type="button" aria-label="Refresh route" title="Refresh route">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 7v5h-5M4 17v-5h5"/>
+            <path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17"/>
           </svg>
-        </div>
-        <div>
-          <h1>HOGS Route Exporter</h1>
-          <p>Active HOGS route</p>
-        </div>
+        </button>
       </header>
 
-      <section id="status-card" class="status-card loading" aria-live="polite">
-        <div class="status-line">
-          <span id="status-dot" class="status-dot"></span>
-          <strong id="status-title">Scanning map…</strong>
+      <section id="status-card" class="status-card loading" aria-live="polite" aria-atomic="true">
+        <span class="status-symbol" aria-hidden="true">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 8 2.5 2.5L12 5"/></svg>
+        </span>
+        <div>
+          <strong id="status-title">Finding your route…</strong>
+          <p id="status-message">Reading the selected route from your map.</p>
         </div>
-        <p id="status-message">Looking for the selected route.</p>
       </section>
 
-      <section id="route-details" class="route-details" hidden>
-        <dl>
-          <div>
-            <dt>Coordinates</dt>
-            <dd id="point-count">—</dd>
-          </div>
-          <div>
-            <dt>Geometry length</dt>
+      <section id="route-details" class="route-card" aria-label="Selected route" hidden>
+        <div class="route-card-header">
+          <h2 id="route-title">Your route</h2>
+          <span id="route-provider" class="provider-badge">Route planner</span>
+        </div>
+        <div class="route-preview">
+          <svg viewBox="0 0 328 108" role="img" aria-label="Preview of the selected route, oriented north up">
+            <polyline id="route-preview-halo" class="route-halo" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline id="route-preview-track" class="route-line" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle id="route-preview-start" class="preview-start" r="4.5"/>
+            <circle id="route-preview-end" class="preview-end" r="4.5"/>
+          </svg>
+          <span class="preview-caption">Route preview</span>
+          <span class="north-marker" aria-hidden="true">↑ N</span>
+        </div>
+        <dl class="route-metrics">
+          <div class="distance-metric">
+            <dt>Track distance</dt>
             <dd id="route-distance">—</dd>
           </div>
+          <div class="secondary-metric">
+            <dt>stops</dt>
+            <dd id="stop-count">—</dd>
+          </div>
+          <div class="secondary-metric">
+            <dt>track points</dt>
+            <dd id="point-count">—</dd>
+          </div>
         </dl>
-        <div class="selected-color">
-          <span id="route-color-swatch" class="color-swatch" aria-hidden="true"></span>
-          <span>Selected route color</span>
-          <code id="route-color">—</code>
+        <div class="route-endpoints">
+          <div class="endpoint">
+            <span class="endpoint-marker origin-marker" aria-hidden="true">A</span>
+            <div>
+              <strong id="route-origin-name">Starting point</strong>
+              <span id="route-origin-coordinates">—</span>
+            </div>
+          </div>
+          <div class="endpoint">
+            <span class="endpoint-marker destination-marker" aria-hidden="true">B</span>
+            <div>
+              <strong id="route-destination-name">Destination</strong>
+              <span id="route-destination-coordinates">—</span>
+            </div>
+          </div>
         </div>
-        <p id="route-endpoints" class="endpoints"></p>
+      </section>
+
+      <section id="empty-state" class="empty-state">
+        <svg class="empty-route" viewBox="0 0 120 88" fill="none" aria-hidden="true">
+          <path d="M22 65V42c0-10 8-18 18-18h40c10 0 18 8 18 18v21" stroke="currentColor" stroke-width="2" stroke-dasharray="4 5"/>
+          <circle cx="22" cy="65" r="9" fill="#e8f0df" stroke="currentColor" stroke-width="2"/>
+          <path d="M98 53c-7 0-12 5-12 11 0 9 12 17 12 17s12-8 12-17c0-6-5-11-12-11Z" fill="#e8f0df" stroke="currentColor" stroke-width="2"/>
+          <circle cx="98" cy="64" r="3" fill="currentColor"/>
+        </svg>
+        <h2>Choose your route</h2>
+        <p>Select a route in your planner.<br>Its preview and export will appear here.</p>
+        <span class="supported-planners">Google Maps · HOGS · IMPARGO · Webfleet</span>
       </section>
 
       <section class="actions" aria-label="Export route">
         <button id="download-gpx" type="button" disabled>
           <span>Download GPX</span>
-          <small>Route, stops, and track</small>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>
         </button>
+        <p class="export-caption">GPX 1.1 <span aria-hidden="true">·</span> Full track &amp; ordered stops</p>
       </section>
 
-      <button id="rescan" class="rescan" type="button">Refresh route</button>
+      <footer>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 1.5 5 2v4c0 3-5 6.5-5 6.5S3 10.5 3 7.5v-4l5-2Z"/><path d="m5.5 7.5 1.6 1.6 3.4-3.4"/></svg>
+        <span>On your device. Only yours.</span>
+      </footer>
     </main>
 
     <script src="export-core.js"></script>
